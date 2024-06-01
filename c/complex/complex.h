@@ -13,5 +13,6 @@ void createNumber(Complex * number, double a, double b);
 void printNumber(Complex number);
 void addNumbers(Complex * result, Complex number1, Complex number2);
 void subtractNumbers(Complex * result, Complex number1, Complex number2);
+void multiplyNumbers(Complex * result, Complex number1, Complex number2);
 
 #endif
