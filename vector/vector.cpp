@@ -76,3 +76,12 @@ Vector Vector :: subVector(unsigned int a, unsigned int b) {
     else return Vector(elements);
     return Vector(newElements);
 }
+
+unsigned int Vector :: size(void) {
+    return elements.size();
+}
+
+double Vector :: operator[](unsigned int index) {
+    if(index >= 0 && index < elements.size()) return elements[index];
+    else return NULL;
+}
