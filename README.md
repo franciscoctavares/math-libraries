@@ -2,5 +2,10 @@
 A set of math related libraries implemented in c++
 
 ## Modules
-* Vector
-* Matrix
+* Implemented
+    * Vector
+    * Matrix
+* Will implement
+    * Numerical
+    * Linear Programming
+    * Integer Programming
