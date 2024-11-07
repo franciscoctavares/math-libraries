@@ -9,3 +9,9 @@ A set of math related libraries implemented in c++
     * Numerical
     * Linear Programming
     * Integer Programming
+
+## Module Dependencies
+1. Vector
+    * 
+2. Matrix
+    * Vector
