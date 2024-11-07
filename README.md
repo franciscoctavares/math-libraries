@@ -12,6 +12,5 @@ A set of math related libraries implemented in c++
 
 ## Module Dependencies
 1. Vector
-    * 
 2. Matrix
     * Vector
