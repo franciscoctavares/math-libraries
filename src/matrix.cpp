@@ -66,3 +66,45 @@ Matrix Matrix::operator*(Matrix matrix) {
         return newMatrix;
     }
 }
+
+Matrix Matrix::getRow(unsigned r) {
+    if(r >= 0 && r < n) {
+        std::vector<double> aux;
+
+        for(int j = 0; j < m; j++) {
+            aux.push_back(elements[r * m + j]);
+        }
+        return Matrix(aux, 1, m);
+    }
+}
+
+Matrix Matrix::getColumn(unsigned c) {
+    if(c >= 0 && c < m) {
+        std::vector<double> aux;
+
+        for(int i = 0; i < n; i++) {
+            aux.push_back(elements[i * m + c]);
+        }
+        return Matrix(aux, n, 1);
+    }
+}
+
+Matrix Matrix::rowOperation(unsigned a, unsigned b, double factor) {
+    Matrix newMatrix(elements, n, m);
+    // a = source, b = target
+    for(int j = 0; j < m; j++) {
+        newMatrix.elements[b * m + j] = newMatrix.elements[b * m + j] + newMatrix.elements[a * m + j] * factor;
+    }
+
+    return newMatrix;
+}
+
+Matrix Matrix::columnOperation(unsigned a, unsigned b, double factor) {
+    Matrix newMatrix(elements, n, m);
+    // a = source, b = target
+    for(int i = 0; i < n; i++) {
+        newMatrix.elements[i * m + b] = newMatrix.elements[i * m + b] + newMatrix.elements[i * m + a] * factor;
+    }
+
+    return newMatrix;
+}

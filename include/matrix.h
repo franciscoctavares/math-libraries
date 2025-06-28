@@ -13,6 +13,10 @@ class Matrix {
         Matrix operator+(Matrix);
         Matrix operator-(Matrix);
         Matrix operator*(Matrix);
+        Matrix getRow(unsigned);
+        Matrix getColumn(unsigned);
+        Matrix rowOperation(unsigned, unsigned, double);
+        Matrix columnOperation(unsigned, unsigned, double);
 };
 
 #endif
