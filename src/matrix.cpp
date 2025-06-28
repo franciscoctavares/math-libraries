@@ -108,3 +108,25 @@ Matrix Matrix::columnOperation(unsigned a, unsigned b, double factor) {
 
     return newMatrix;
 }
+
+double Matrix::dotProduct(Matrix matrix) {
+    if(elements.size() == matrix.elements.size()) {
+        double result = 0;
+        for(int i = 0; i < elements.size(); i++) {
+            result += elements[i] * matrix.elements[i];
+        }
+        return result;
+    }
+}
+
+unsigned Matrix::rows() {
+    return n;
+}
+
+unsigned Matrix::columns() {
+    return m;
+}
+
+double Matrix::getElement(unsigned row, unsigned column) {
+    return elements[row * m + column];
+}
