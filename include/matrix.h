@@ -27,5 +27,6 @@ class Matrix {
 };
 
 Matrix zeros(unsigned, unsigned);
+Matrix basisVector(unsigned, unsigned);
 
 #endif

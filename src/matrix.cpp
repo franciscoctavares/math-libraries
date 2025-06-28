@@ -11,6 +11,15 @@ Matrix zeros(unsigned rows, unsigned columns) {
     return Matrix(vec, rows, columns);
 }
 
+Matrix basisVector(unsigned size, unsigned index) {
+    std::vector<double> vec;
+    for(int i = 0; i < size; i++) {
+        if(i == index) vec.push_back(1.0);
+        else vec.push_back(0.0);
+    }
+    return Matrix(vec, size, 1);
+}
+
 Matrix::Matrix(std::vector<double> vec, unsigned a, unsigned b) {
     elements = vec;
     if(elements.size() != a * b) {
