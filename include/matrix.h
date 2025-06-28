@@ -22,6 +22,10 @@ class Matrix {
         unsigned rows(); // returns the number of rows
         unsigned columns(); // returns the number of columns
         double getElement(unsigned, unsigned); // returns the element given the indices of the row and column
+        Matrix stackVertical(Matrix);
+        Matrix stackHorizontal(Matrix);
 };
+
+Matrix zeros(unsigned, unsigned);
 
 #endif

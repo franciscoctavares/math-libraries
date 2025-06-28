@@ -3,6 +3,14 @@
 #include <iostream>
 #include <iomanip>
 
+Matrix zeros(unsigned rows, unsigned columns) {
+    std::vector<double> vec;
+    for(int i = 0; i < rows * columns; i++) {
+        vec.push_back(0.0);
+    }
+    return Matrix(vec, rows, columns);
+}
+
 Matrix::Matrix(std::vector<double> vec, unsigned a, unsigned b) {
     elements = vec;
     if(elements.size() != a * b) {
@@ -129,4 +137,28 @@ unsigned Matrix::columns() {
 
 double Matrix::getElement(unsigned row, unsigned column) {
     return elements[row * m + column];
+}
+
+Matrix Matrix::stackVertical(Matrix matrix) {
+    if(m == matrix.columns()) {
+        std::vector<double> aux;
+        for(int i = 0; i < rows() * columns(); i++) aux.push_back(getElement(i / rows(), i % columns()));
+        for(int j = 0; j < matrix.rows() * matrix.columns(); j++) aux.push_back(matrix.getElement(j / matrix.rows(), j % matrix.columns()));
+        return Matrix(aux, n + matrix.rows(), m);
+    }
+}
+
+Matrix Matrix::stackHorizontal(Matrix matrix) {
+    if(n == matrix.rows()) {
+        std::vector<double> aux;
+        for(int i = 0; i < n; i++) {
+            for(int j = 0; j < m; j++) {
+                aux.push_back(elements[i * m + j]);
+            }
+            for(int k = 0; k < matrix.columns(); k++) {
+                aux.push_back(matrix.getElement(i, k));
+            }
+        }
+        return Matrix(aux, n, m + matrix.columns());
+    }
 }
