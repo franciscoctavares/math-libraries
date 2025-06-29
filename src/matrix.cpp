@@ -148,6 +148,10 @@ double Matrix::getElement(unsigned row, unsigned column) {
     return elements[row * m + column];
 }
 
+void Matrix::setElement(unsigned row, unsigned col, double value) {
+    elements[row * m + col] = value;
+}
+
 Matrix Matrix::stackVertical(Matrix matrix) {
     if(m == matrix.columns()) {
         std::vector<double> aux;
@@ -170,4 +174,15 @@ Matrix Matrix::stackHorizontal(Matrix matrix) {
         }
         return Matrix(aux, n, m + matrix.columns());
     }
+}
+
+Matrix Matrix::transpose() {
+    Matrix newMatrix = zeros(m, n);
+
+    for(int i = 0; i < n; i++) {
+        for(int j = 0; j < m; j++) {
+            newMatrix.setElement(j, i, getElement(i, j));
+        }
+    }
+    return newMatrix;
 }
