@@ -4,10 +4,25 @@
 #include "matrix.h"
 #include <vector>
 
+#include <limits>
+
+#define M std::numeric_limits<double>::max()
+
 enum restrictionType {
     LESS_THAN_OR_EQUAL,      // <=
     EQUAL,                   // =
     GREATER_THAN_OR_EQUAL    // >=
+};
+
+enum extraVariables {
+    SLACK,                  // +s
+    SURPLUS,                // -s
+    NEUTRAL                 // +0
+};
+
+enum ProblemType {
+    MIN,
+    MAX
 };
 
 class LpProblem {
@@ -15,11 +30,19 @@ class LpProblem {
         Matrix objectiveFunction; // row Matrix with the objective function coefficients
         Matrix restrictionsLHS, restrictionsRHS;
         std::vector<restrictionType> restrictionsTypes;
-        Matrix solution;
+        Matrix optimalSolution;
+        ProblemType type;
+        // private methods
+        bool isSimplexDone(Matrix);
+        unsigned getPivotRow(Matrix);
     public:
-        LpProblem(Matrix, Matrix, Matrix, std::vector<restrictionType>);
+        std::vector<Matrix> initialSimplexTableau();
+        LpProblem(ProblemType, Matrix, Matrix, Matrix, std::vector<restrictionType>);
+        void displaySimplexTableau();
         bool isRestrictionSatisfied(Matrix, Matrix, double, restrictionType);
         bool isSolutionAdmissible(Matrix);
+        Matrix solveSimplex();
+        void displayProblem();
 };
 
 #endif
