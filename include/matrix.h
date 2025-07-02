@@ -26,6 +26,12 @@ class Matrix {
         Matrix stackVertical(Matrix);
         Matrix stackHorizontal(Matrix);
         Matrix transpose();
+        Matrix operator*(double);
+        unsigned maxValueIndex();
+        unsigned minValueIndex();
+        Matrix pointDivision(Matrix);
+        Matrix setRow(unsigned, Matrix);
+        Matrix setColumn(unsigned, Matrix);
 };
 
 Matrix zeros(unsigned, unsigned);

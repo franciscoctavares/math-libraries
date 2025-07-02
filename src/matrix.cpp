@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
 
 Matrix zeros(unsigned rows, unsigned columns) {
     std::vector<double> vec;
@@ -185,4 +186,63 @@ Matrix Matrix::transpose() {
         }
     }
     return newMatrix;
+}
+
+Matrix Matrix::operator*(double value) {
+    std::vector<double> aux = elements;
+    for(int i = 0; i < n * m; i++) aux[i] *= value;
+    return Matrix(aux, n, m);
+}
+
+unsigned Matrix::maxValueIndex() {
+    auto maxIt = std::max_element(elements.begin(), elements.end());
+    size_t maxIndex = std::distance(elements.begin(), maxIt);
+    return maxIndex;
+}
+
+unsigned Matrix::minValueIndex() {
+    auto minIt = std::min_element(elements.begin(), elements.end());
+    size_t minIndex = std::distance(elements.begin(), minIt);
+    return minIndex;
+}
+
+Matrix Matrix::pointDivision(Matrix matrix) {
+    if(rows() == matrix.rows() && columns() == matrix.columns()) {
+        std::vector<double> aux = elements;
+        for(int i = 0; i < rows() * columns(); i++) {
+            aux[i] /= matrix.getElement(i / m, i % m);
+        }
+        return Matrix(aux, n, m);
+    }
+}
+
+Matrix Matrix::setRow(unsigned row, Matrix matrix) {
+    /*Matrix aux(elements, n, m);
+    if(columns() == matrix.columns()) {
+        std::cout << "correct format" << std::endl;
+        for(int i = 0; i < columns(); i++) {
+            aux.setElement(row, i, matrix.getElement(row, i));
+        }
+    }
+    return aux;*/
+    if(m == matrix.columns()) {
+        std::vector<double> aux;
+        for(int i = 0; i < n; i++) {
+            for(int j = 0; j < m; j++) {
+                if(i == row) aux.push_back(matrix.getElement(0, j));
+                else aux.push_back(elements[i * m + j]);
+            }
+        }
+        return Matrix(aux, n, m);
+    }
+}
+
+Matrix Matrix::setColumn(unsigned column, Matrix matrix) {
+    Matrix aux(elements, n, m);
+    if(rows() == matrix.rows()) {
+        for(int i = 0; i < rows(); i++) {
+            aux.setElement(i, column, matrix.getElement(i, column));
+        }
+    }
+    return aux;
 }
