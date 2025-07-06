@@ -60,6 +60,20 @@ Matrix Matrix::operator+(Matrix matrix) {
     return aux;
 }
 
+void Matrix::operator+=(Matrix matrix) {
+    std::ostringstream errorMsg;
+    if(n != matrix.n || m != matrix.m) {
+        errorMsg << "Error using operator+=: matrix1 has dimensions (" << n << ", " << m << 
+                    ") and matrix 2 has dimenions (" << matrix.n << ", " << matrix.m << ")";
+        throw std::runtime_error(errorMsg.str());
+    }
+    for(int i = 0; i < n; i++) {
+        for(int j = 0; j < m; j++) {
+            elements[i * m + j] += matrix.elements[i * m + j];
+        }
+    }
+}
+
 Matrix Matrix::operator-(Matrix matrix) {
     std::ostringstream errorMsg;
     if(n != matrix.n || m != matrix.m) {
@@ -72,6 +86,20 @@ Matrix Matrix::operator-(Matrix matrix) {
         aux.elements[i] -= matrix.elements[i];
     }
     return aux;
+}
+
+void Matrix::operator-=(Matrix matrix) {
+    std::ostringstream errorMsg;
+    if(n != matrix.n || m != matrix.m) {
+        errorMsg << "Error using operator-=: matrix1 has dimensions (" << n << ", " << m << 
+                    ") and matrix 2 has dimenions (" << matrix.n << ", " << matrix.m << ")";
+        throw std::runtime_error(errorMsg.str());
+    }
+    for(int i = 0; i < n; i++) {
+        for(int j = 0; j < m; j++) {
+            elements[i * m + j] -= matrix.elements[i * m + j];
+        }
+    }
 }
 
 Matrix Matrix::operator*(Matrix matrix) {
@@ -126,7 +154,8 @@ Matrix Matrix::getColumn(unsigned c) {
     }
 }
 
-Matrix Matrix::rowOperation(unsigned a, unsigned b, double factor) {
+void Matrix::rowOperation(unsigned a, unsigned b, double factor) {
+    /*
     Matrix newMatrix(elements, n, m);
     // a = source, b = target
     for(int j = 0; j < m; j++) {
@@ -134,9 +163,14 @@ Matrix Matrix::rowOperation(unsigned a, unsigned b, double factor) {
     }
 
     return newMatrix;
+    */
+    for(int j = 0; j < m; j++) {
+        elements[b * m + j] += elements[a * m + j] * factor;
+    }
 }
 
-Matrix Matrix::columnOperation(unsigned a, unsigned b, double factor) {
+void Matrix::columnOperation(unsigned a, unsigned b, double factor) {
+    /*
     Matrix newMatrix(elements, n, m);
     // a = source, b = target
     for(int i = 0; i < n; i++) {
@@ -144,6 +178,11 @@ Matrix Matrix::columnOperation(unsigned a, unsigned b, double factor) {
     }
 
     return newMatrix;
+    */
+
+    for(int i = 0; i < n; i++) {
+        elements[i * m + b] += elements[i * m + a] * factor;
+    }
 }
 
 double Matrix::dotProduct(Matrix matrix) { // assumes both matrices are row/column matrices(matrix 1 could be row and 2 could be column)
@@ -183,34 +222,42 @@ void Matrix::setElement(unsigned row, unsigned col, double value) {
     elements[row * m + col] = value;
 }
 
-Matrix Matrix::stackVertical(Matrix matrix) {
+void Matrix::stackVertical(Matrix matrix) {
     if(m != matrix.m) {
         std::ostringstream errorMsg;
         errorMsg << "Error using stackVertical: cannot vertically stack a matrix with " << matrix.m << " columns below a matrix with " << m << " columns";
         throw std::runtime_error(errorMsg.str());
     }
+    /*
     std::vector<double> aux;
     for(int i = 0; i < rows() * columns(); i++) aux.push_back(getElement(i / rows(), i % columns()));
     for(int j = 0; j < matrix.rows() * matrix.columns(); j++) aux.push_back(matrix.getElement(j / matrix.rows(), j % matrix.columns()));
     return Matrix(aux, n + matrix.rows(), m);
+    */
+    for(int i = 0; i < matrix.n * matrix.m; i++) {
+        elements.push_back(matrix.elements[i]);
+    }
+    n += matrix.n;
 }
 
-Matrix Matrix::stackHorizontal(Matrix matrix) {
+void Matrix::stackHorizontal(Matrix matrix) {
     if(n != matrix.n) {
         std::ostringstream errorMsg;
         errorMsg << "Error using stackHorizontal: cannot horizontally stack a matrix with " << matrix.n << " rows next to a matrix with " << n << " rows";
         throw std::runtime_error(errorMsg.str());
     }
-    std::vector<double> aux;
+
+    unsigned current_index;
     for(int i = 0; i < n; i++) {
-        for(int j = 0; j < m; j++) {
-            aux.push_back(elements[i * m + j]);
+        //std::cout << elements.size() << std::endl;
+        for(int j = 0; j < matrix.m; j++) {
+            current_index = i * (m + matrix.m) + (m + j);
+            elements.insert(elements.begin() + current_index, matrix.elements[i * matrix.m + j]);
+            std::cout << current_index << " ";
         }
-        for(int k = 0; k < matrix.columns(); k++) {
-            aux.push_back(matrix.getElement(i, k));
-        }
+        std::cout << std::endl;
     }
-    return Matrix(aux, n, m + matrix.columns());
+    m += matrix.m;
 }
 
 Matrix Matrix::transpose() {
@@ -228,6 +275,10 @@ Matrix Matrix::operator*(double value) {
     std::vector<double> aux = elements;
     for(int i = 0; i < n * m; i++) aux[i] *= value;
     return Matrix(aux, n, m);
+}
+
+void Matrix::operator*=(double value) {
+    for(int i = 0; i < n * m; i++) elements[i] *= value;
 }
 
 unsigned Matrix::maxValueIndex() {
@@ -297,4 +348,44 @@ Matrix Matrix::setColumn(unsigned column, Matrix matrix) {
         }
     }
     return Matrix(aux, n, m);
+}
+
+Matrix Matrix::removeRow(unsigned row) {
+    if(row < 0 || row > rows() - 1) {
+        std::ostringstream errorMsg;
+        errorMsg << "Error using removeRow: the row argument must be between 0 and " << n - 1 << ", but the value provided was " << row;
+        throw std::runtime_error(errorMsg.str());
+    }
+
+    std::vector<double> aux;
+    for(int i = 0; i < rows(); i++) {
+        if(i == row) continue;
+        for(int j = 0; j < columns(); j++) {
+            aux.push_back(getElement(i, j));
+        }
+    }
+    return Matrix(aux, n - 1, m);
+}
+
+Matrix Matrix::removeColumn(unsigned column) {
+    if(column < 0 || column > columns() - 1) {
+        std::ostringstream errorMsg;
+        errorMsg << "Error using removeColumn: the column argument must be between 0 and " << m - 1 << ", but the value provided was " << column;
+        throw std::runtime_error(errorMsg.str());
+    }
+
+    std::vector<double> aux;
+    for(int i = 0; i < rows(); i++) {
+        for(int j = 0; j < columns(); j++) {
+            if(j == column) continue;
+            aux.push_back(getElement(i, j));
+        }
+    }
+    return Matrix(aux, n, m - 1);
+}
+
+unsigned Matrix::findValueInVectorMatrix(double value) {
+    for(int i = 0; i < elements.size(); i++) {
+        if(elements[i] == value) return i;
+    }
 }
