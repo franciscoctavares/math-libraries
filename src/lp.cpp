@@ -248,7 +248,8 @@ unsigned LpProblem::getPivotRow(Matrix ratios) {
     double minValue = M;
     unsigned minIndex = 0;
     for(int i = 0; i < ratios.rows(); i++) {
-        if(ratios.getElement(i, 0) < minValue && ratios.getElement(i, 0) >= 0) {
+        if(ratios.getElement(i, 0) < minValue && ratios.getElement(i, 0) >= 0 &&
+           ratios.getElement(i, 0) != M && ratios.getElement(i, 0) != -1 * M) {
             minValue = ratios.getElement(i, 0);
             minIndex = i;
         }
