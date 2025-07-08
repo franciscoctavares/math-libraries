@@ -6,7 +6,7 @@
 
 #include <limits>
 
-#define M std::numeric_limits<double>::max()
+#define M 1000000
 
 enum restrictionType {
     LESS_THAN_OR_EQUAL,      // <=
@@ -35,13 +35,15 @@ class LpProblem {
         // private methods
         bool isSimplexDone(Matrix);
         unsigned getPivotRow(Matrix);
+        Matrix getBasisIndices(Matrix);
     public:
+        Matrix extraVariablesMatrix();
         std::vector<Matrix> initialSimplexTableau();
         LpProblem(ProblemType, Matrix, Matrix, Matrix, std::vector<restrictionType>);
         void displaySimplexTableau();
         bool isRestrictionSatisfied(Matrix, Matrix, double, restrictionType);
         bool isSolutionAdmissible(Matrix);
-        Matrix solveSimplex();
+        void solveSimplex();
         void displayProblem();
 };
 
