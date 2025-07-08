@@ -253,9 +253,9 @@ void Matrix::stackHorizontal(Matrix matrix) {
         for(int j = 0; j < matrix.m; j++) {
             current_index = i * (m + matrix.m) + (m + j);
             elements.insert(elements.begin() + current_index, matrix.elements[i * matrix.m + j]);
-            std::cout << current_index << " ";
+            //std::cout << current_index << " ";
         }
-        std::cout << std::endl;
+        //std::cout << std::endl;
     }
     m += matrix.m;
 }
@@ -388,4 +388,5 @@ unsigned Matrix::findValueInVectorMatrix(double value) {
     for(int i = 0; i < elements.size(); i++) {
         if(elements[i] == value) return i;
     }
+    return -1;
 }
