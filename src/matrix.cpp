@@ -4,6 +4,8 @@
 #include <iomanip>
 #include <algorithm>
 
+#include <string>
+
 Matrix zeros(unsigned rows, unsigned columns) {
     std::vector<double> vec;
     for(int i = 0; i < rows * columns; i++) {
@@ -34,13 +36,25 @@ Matrix::Matrix(std::vector<double> vec, unsigned a, unsigned b) {
 }
 
 void Matrix::displayMatrix() {
+    size_t maxWidth = 0;
+    for(double val: elements) {
+        std::string str = std::to_string(val);
+        // Trim trailing zeroes for nicer formatting (optional)
+        str.erase(str.find_last_not_of('0') + 1, std::string::npos);
+        if (str.back() == '.') str.pop_back(); // remove trailing dot if needed
+        maxWidth = std::max(maxWidth, str.length());
+    }
+
+    //maxWidth += 2;
+
     for(int i = 0; i < n; i++) {
         std::cout << "|";
         for(int j = 0; j < m; j++) {
-            if(elements[i * m + j] < 0) std::cout << "-";
-            else std::cout << "+";
-            std::cout << std::setprecision(3) << std::fixed << fabs(elements[i * m + j]);
-            if(j < m - 1) std::cout << " ";
+            //if(elements[i * m + j] < 0) std::cout << "-";
+            //else std::cout << "+";
+            std::cout << std::setw(maxWidth) << elements[i * m + j];
+            //std::cout << std::setprecision(3) << std::fixed << fabs(elements[i * m + j]);
+            //if(j < m - 1) std::cout << " ";
         }
         std::cout << "|" << std::endl;
     }
@@ -121,15 +135,26 @@ Matrix Matrix::operator*(Matrix matrix) {
     }
     else throw std::runtime_error("Dimensions don't match");
 }
+/*
+void Matrix::operator=(Matrix matrix) {
+    elements.clear();
+    n = matrix.n;
+    m = matrix.m;
+    for(int i = 0; i < n * m; i++) {
+        elements.push_back(matrix.elements[i]);
+    }
+}
+*/
 
-Matrix Matrix::getRow(unsigned r) {
+
+std::vector<double> Matrix::getRow(unsigned r) {
     if(r >= 0 && r < n) {
         std::vector<double> aux;
 
         for(int j = 0; j < m; j++) {
             aux.push_back(elements[r * m + j]);
         }
-        return Matrix(aux, 1, m);
+        return aux;
     }
     else {
         std::ostringstream errorMsg;
@@ -155,15 +180,16 @@ Matrix Matrix::getColumn(unsigned c) {
 }
 
 void Matrix::rowOperation(unsigned a, unsigned b, double factor) {
-    /*
-    Matrix newMatrix(elements, n, m);
-    // a = source, b = target
-    for(int j = 0; j < m; j++) {
-        newMatrix.elements[b * m + j] = newMatrix.elements[b * m + j] + newMatrix.elements[a * m + j] * factor;
+    if(a < 0 || a >= n) {
+        std::ostringstream errorMsg;
+        errorMsg << "Error using rowOperation: The a argument must be between 0 and " << n - 1 << ", but the value provided was " << a;
+        throw std::runtime_error(errorMsg.str());
     }
-
-    return newMatrix;
-    */
+    if(b < 0 || b >= n) {
+        std::ostringstream errorMsg;
+        errorMsg << "Error using rowOperation: The b argument must be between 0 and " << n - 1 << ", but the value provided was " << b;
+        throw std::runtime_error(errorMsg.str());
+    }
     for(int j = 0; j < m; j++) {
         elements[b * m + j] += elements[a * m + j] * factor;
     }
@@ -219,6 +245,16 @@ double Matrix::getElement(unsigned row, unsigned column) {
 }
 
 void Matrix::setElement(unsigned row, unsigned col, double value) {
+    if(row < 0 || row >= n) {
+        std::ostringstream errorMsg;
+        errorMsg << "Error using setElement: The row argument must be between 0 and " << n - 1 << ", but the value provided was " << row;
+        throw std::runtime_error(errorMsg.str());
+    }
+    if(col < 0 || col >= m) {
+        std::ostringstream errorMsg;
+        errorMsg << "Error using setElement: The col argument must be between 0 and " << m - 1 << ", but the value provided was " << col;
+        throw std::runtime_error(errorMsg.str());
+    }
     elements[row * m + col] = value;
 }
 
@@ -367,21 +403,23 @@ Matrix Matrix::removeRow(unsigned row) {
     return Matrix(aux, n - 1, m);
 }
 
-Matrix Matrix::removeColumn(unsigned column) {
+void Matrix::removeColumn(unsigned column) {
     if(column < 0 || column > columns() - 1) {
         std::ostringstream errorMsg;
         errorMsg << "Error using removeColumn: the column argument must be between 0 and " << m - 1 << ", but the value provided was " << column;
         throw std::runtime_error(errorMsg.str());
     }
 
-    std::vector<double> aux;
+    std::vector<double> aux = elements;
+    elements.clear();
     for(int i = 0; i < rows(); i++) {
         for(int j = 0; j < columns(); j++) {
             if(j == column) continue;
-            aux.push_back(getElement(i, j));
+            elements.push_back(getElement(i, j));
         }
     }
-    return Matrix(aux, n, m - 1);
+    //return Matrix(aux, n, m - 1);
+    m--;
 }
 
 unsigned Matrix::findValueInVectorMatrix(double value) {
@@ -389,4 +427,19 @@ unsigned Matrix::findValueInVectorMatrix(double value) {
         if(elements[i] == value) return i;
     }
     return -1;
+}
+
+Matrix Matrix::subMatrix(unsigned r1, unsigned r2, unsigned c1, unsigned c2) {
+    std::vector<double> aux;
+
+    for(int i = 0; i < n; i++) {
+        for(int j = 0; j < m; j++) {
+            if(i >= r1 && i <= r2 && j >= c1 && j <= c2) aux.push_back(elements[i * m + j]);
+        }
+    }
+    return Matrix(aux, r2 - r1 + 1, c2 - c1 + 1);
+}
+
+std::vector<double> Matrix::getElements() {
+    return elements;
 }

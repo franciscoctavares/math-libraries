@@ -3,6 +3,7 @@
 
 #include "matrix.h"
 #include <vector>
+#include <string>
 
 #include <limits>
 
@@ -34,17 +35,27 @@ class LpProblem {
         ProblemType type;
         // private methods
         bool isSimplexDone(Matrix);
-        unsigned getPivotRow(Matrix);
+        unsigned getPivotRow(std::vector<double>, std::vector<double>, Matrix);
         Matrix getBasisIndices(Matrix);
+        size_t getMaxWidth(std::vector<std::string>, Matrix);
+
     public:
+        LpProblem(void) = default;
         Matrix extraVariablesMatrix();
         std::vector<Matrix> initialSimplexTableau();
         LpProblem(ProblemType, Matrix, Matrix, Matrix, std::vector<restrictionType>);
-        void displaySimplexTableau();
+        std::vector<std::vector<int>> getRestrictionsIndexes(Matrix);
+        void displaySimplexTableau(Matrix, Matrix, Matrix, Matrix, Matrix, Matrix, Matrix);
         bool isRestrictionSatisfied(Matrix, Matrix, double, restrictionType);
         bool isSolutionAdmissible(Matrix);
-        void solveSimplex();
+        Matrix solveSimplex();
         void displayProblem();
+        void addRestriction(Matrix, restrictionType, double);
+        bool isProblemFeasible();
+        bool isProblemBounded();
+        Matrix getOptimalSolution();
+        ProblemType getType();
+        Matrix getObjectiveFunction();
 };
 
 #endif

@@ -19,7 +19,10 @@ class Matrix {
         void operator-=(Matrix);
         Matrix operator*(Matrix);
 
-        Matrix getRow(unsigned);
+        // extra operator
+        //void operator=(Matrix);
+
+        std::vector<double> getRow(unsigned);
         Matrix getColumn(unsigned);
 
         void rowOperation(unsigned, unsigned, double);
@@ -50,9 +53,12 @@ class Matrix {
         Matrix setColumn(unsigned, Matrix);
         
         Matrix removeRow(unsigned);
-        Matrix removeColumn(unsigned);
+        void removeColumn(unsigned);
         
         unsigned findValueInVectorMatrix(double);
+
+        Matrix subMatrix(unsigned, unsigned, unsigned, unsigned);
+        std::vector<double> getElements();
 };
 
 Matrix zeros(unsigned, unsigned);
