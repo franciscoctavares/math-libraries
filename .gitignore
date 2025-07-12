@@ -2,8 +2,5 @@ obj/*
 main.cpp
 main
 .vscode/*
-makefile
-test.cpp
 test
-lol.cpp
 model.lp
