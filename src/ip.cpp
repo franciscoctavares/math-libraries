@@ -32,13 +32,31 @@ unsigned BranchAndBoundNode::getBranchVariableIndex(Matrix solution) {
 }
 
 Matrix BranchAndBoundNode::solveChildrenNodes(unsigned n) {
-    //std::cout << "This is problem " << n << std::endl;
-    //problem.displaySimplexTableau();
-    Matrix currentSol = problem.solveSimplex();
+    Matrix currentSol;
+
+    unsigned k = problem.getConstraintsLHS().rows();
+    std::vector<double> lhsAux = problem.getConstraintsLHS().getRow(k - 1);
+    std::vector<restrictionType> restTypes = problem.getConstraintsTypes();
+    double rhsAux = problem.getConstraintsRHS().getElement(k - 1, 0);
+    std::pair<int, double> simplifiedAux = canProblemBeSimplified(Matrix(lhsAux, 1, k), restTypes[k - 1], rhsAux);
+
+    if(simplifiedAux.first != -1) {
+        std::tuple<LpProblem, std::vector<std::pair<unsigned, unsigned>>, double> simplifiedProblemAux = problem.simplifyProblem(simplifiedAux.first, simplifiedAux.second);
+        LpProblem simplifiedProblem = std::get<0>(simplifiedProblemAux);
+        std::vector<std::pair<unsigned, unsigned>> oldToNewVars = std::get<1>(simplifiedProblemAux);
+        double whatever = std::get<2>(simplifiedProblemAux);
+
+        Matrix simplifiedProblemSolution = simplifiedProblem.solveSimplex();
+
+        currentSol = problem.getSimplifiedProblemSolution(simplifiedProblemSolution, oldToNewVars, simplifiedAux.first, simplifiedAux.second);
+        problem.setOptimalSolution(currentSol);
+    }
+    else currentSol = problem.solveSimplex();
+    //Matrix currentSol = problem.solveSimplex();
     problem.displayProblem();
 
     if(isSolutionWhole(currentSol)) {
-        std::cout << "The solution to the problem " << n << " is whole." << std::endl;
+        //std::cout << "The solution to the problem " << n << " is whole." << std::endl;
         return currentSol;
     }
     else if(!problem.isProblemBounded() || !problem.isProblemFeasible()) return currentSol;
@@ -116,8 +134,17 @@ IpProblem::IpProblem(LpProblem problem) {
 
 void IpProblem::solveBranchAndBound() {
     BranchAndBoundTree tree(startingProblem);
-    //Matrix solution = tree.getHeadNode().solveCurrentNode();
-    //unsigned lol = tree.getHeadNode().getBranchVariableIndex(solution);
     Matrix bestSolution = tree.getHeadNode().solveChildrenNodes(0);
-    bestSolution.displayMatrix();
+
+    startingProblem.setOptimalSolution(bestSolution);
+    std::cout << std::endl;
+    startingProblem.displayProblem();
+    //bestSolution.displayMatrix();
+}
+
+std::pair<int, double> BranchAndBoundNode::canProblemBeSimplified(Matrix lhs, restrictionType restType, double rhs) {
+    int isLhsBasisVector = lhs.isBasisVector();
+
+    if(isLhsBasisVector != -1 && restType == LESS_THAN_OR_EQUAL && rhs == 0) return std::make_pair(isLhsBasisVector, rhs);
+    else return std::make_pair(-1, -1);
 }
