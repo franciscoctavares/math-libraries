@@ -59,6 +59,9 @@ class Matrix {
 
         Matrix subMatrix(unsigned, unsigned, unsigned, unsigned);
         std::vector<double> getElements();
+
+        // More auxiliary methods...
+        int isBasisVector();
 };
 
 Matrix zeros(unsigned, unsigned);

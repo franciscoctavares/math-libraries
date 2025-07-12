@@ -45,9 +45,11 @@ void Matrix::displayMatrix() {
         maxWidth = std::max(maxWidth, str.length());
     }
 
-    //maxWidth += 2;
+    unsigned padding = 1;
+    maxWidth += padding;
 
     for(int i = 0; i < n; i++) {
+        //for(int l = 0; l < 18 - 1; l++) std::cout << " ";
         std::cout << "|";
         for(int j = 0; j < m; j++) {
             //if(elements[i * m + j] < 0) std::cout << "-";
@@ -56,8 +58,11 @@ void Matrix::displayMatrix() {
             //std::cout << std::setprecision(3) << std::fixed << fabs(elements[i * m + j]);
             //if(j < m - 1) std::cout << " ";
         }
+        for(int k = 0; k < padding; k++) std::cout << " ";
         std::cout << "|" << std::endl;
+        //for(int k = 0; k < padding; k++)
     }
+    //for(int i = 0; i < padding; i++) std::cout
 }
 
 Matrix Matrix::operator+(Matrix matrix) {
@@ -442,4 +447,24 @@ Matrix Matrix::subMatrix(unsigned r1, unsigned r2, unsigned c1, unsigned c2) {
 
 std::vector<double> Matrix::getElements() {
     return elements;
+}
+
+int Matrix::isBasisVector() {
+    unsigned one_count = 0;
+    unsigned zero_count = 0;
+
+    int index_of_only_one;
+
+    for(int i = 0; i < elements.size(); i++) {
+        if(elements[i] == 0) zero_count++;
+        else if(elements[i] == 1) {
+            one_count++;
+            index_of_only_one = i;
+        }
+        else return false;
+
+        if(one_count > 1) return false;
+    }
+    if(one_count == 1 && zero_count == elements.size() - 1) return index_of_only_one;
+    else return -1;
 }

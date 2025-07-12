@@ -4,6 +4,7 @@
 #include "matrix.h"
 #include <vector>
 #include <string>
+#include <tuple>
 
 #include <limits>
 
@@ -37,8 +38,8 @@ class LpProblem {
         bool isSimplexDone(Matrix);
         unsigned getPivotRow(std::vector<double>, std::vector<double>, Matrix);
         Matrix getBasisIndices(Matrix);
-        size_t getMaxWidth(std::vector<std::string>, Matrix);
-
+        std::vector<std::pair<size_t, size_t>> getMaxWidth(std::vector<std::string>, Matrix, std::string mode = "matrix");
+        std::vector<std::string> basisHeaders(Matrix, Matrix);
     public:
         LpProblem(void) = default;
         Matrix extraVariablesMatrix();
@@ -54,8 +55,18 @@ class LpProblem {
         bool isProblemFeasible();
         bool isProblemBounded();
         Matrix getOptimalSolution();
+        void setOptimalSolution(Matrix);
         ProblemType getType();
         Matrix getObjectiveFunction();
+
+
+        // Auxiliary methods for fixing variable values
+        std::tuple<LpProblem, std::vector<std::pair<unsigned, unsigned>>, double> simplifyProblem(unsigned, double);
+        Matrix getSimplifiedProblemSolution(Matrix, std::vector<std::pair<unsigned, unsigned>>, unsigned, double);
+
+        Matrix getConstraintsLHS();
+        std::vector<restrictionType> getConstraintsTypes();
+        Matrix getConstraintsRHS();
 };
 
 #endif
