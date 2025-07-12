@@ -2,5 +2,4 @@ obj/*
 main.cpp
 main
 .vscode/*
-test
 model.lp

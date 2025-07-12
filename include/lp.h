@@ -2,6 +2,8 @@
 #define LP_H
 
 #include "matrix.h"
+#include "constraint.h"
+
 #include <vector>
 #include <string>
 #include <tuple>
@@ -10,18 +12,6 @@
 
 #define M 1000000
 
-enum restrictionType {
-    LESS_THAN_OR_EQUAL,      // <=
-    EQUAL,                   // =
-    GREATER_THAN_OR_EQUAL    // >=
-};
-
-enum extraVariables {
-    SLACK,                  // +s
-    SURPLUS,                // -s
-    NEUTRAL                 // +0
-};
-
 enum ProblemType {
     MIN,
     MAX
@@ -29,12 +19,12 @@ enum ProblemType {
 
 class LpProblem {
     private:
-        Matrix objectiveFunction; // row Matrix with the objective function coefficients
-        Matrix restrictionsLHS, restrictionsRHS;
-        std::vector<restrictionType> restrictionsTypes;
-        Matrix optimalSolution;
         ProblemType type;
-        // private methods
+        Matrix objectiveFunction;
+        std::vector<Constraint> constraints;
+
+        bool isProblemCorrectlyFormulated(void);
+
         bool isSimplexDone(Matrix);
         unsigned getPivotRow(std::vector<double>, std::vector<double>, Matrix);
         Matrix getBasisIndices(Matrix);
@@ -42,16 +32,18 @@ class LpProblem {
         std::vector<std::string> basisHeaders(Matrix, Matrix);
     public:
         LpProblem(void) = default;
+        LpProblem(ProblemType, std::vector<double>, std::vector<Constraint>);
+
+        bool isRestrictionSatisfied(std::vector<double>, int);
+        bool isSolutionAdmissible(Matrix);
+
         Matrix extraVariablesMatrix();
         std::vector<Matrix> initialSimplexTableau();
-        LpProblem(ProblemType, Matrix, Matrix, Matrix, std::vector<restrictionType>);
         std::vector<std::vector<int>> getRestrictionsIndexes(Matrix);
         void displaySimplexTableau(Matrix, Matrix, Matrix, Matrix, Matrix, Matrix, Matrix);
-        bool isRestrictionSatisfied(Matrix, Matrix, double, restrictionType);
-        bool isSolutionAdmissible(Matrix);
         Matrix solveSimplex();
         void displayProblem();
-        void addRestriction(Matrix, restrictionType, double);
+        void addRestriction(Matrix, ConstraintType, double);
         bool isProblemFeasible();
         bool isProblemBounded();
         Matrix getOptimalSolution();
@@ -65,7 +57,7 @@ class LpProblem {
         Matrix getSimplifiedProblemSolution(Matrix, std::vector<std::pair<unsigned, unsigned>>, unsigned, double);
 
         Matrix getConstraintsLHS();
-        std::vector<restrictionType> getConstraintsTypes();
+        std::vector<ConstraintType> getConstraintsTypes();
         Matrix getConstraintsRHS();
 };
 

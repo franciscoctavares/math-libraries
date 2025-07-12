@@ -3,12 +3,10 @@
 #include <iostream>
 #include <iomanip>
 
-LpProblem::LpProblem(ProblemType probType, Matrix objCoeffs, Matrix restLHS, Matrix restRHS, std::vector<restrictionType> restType) {
+LpProblem::LpProblem(ProblemType probType, std::vector<double> newObjectiveFunction, std::vector<Constraint> newConstraints) {
     type = probType,
-    objectiveFunction = objCoeffs; // assumes objectiveFunction is a row matrix
-    restrictionsLHS = restLHS;
-    restrictionsRHS = restRHS;     // assumes restrictionsRHS is a column matrix
-    restrictionsTypes = restType;
+    objectiveFunction = Matrix(newObjectiveFunction, 1, newObjectiveFunction.size());
+    constraints = newConstraints;
 }
 
 std::vector<std::vector<int>> LpProblem::getRestrictionsIndexes(Matrix extraCj) {
@@ -252,7 +250,7 @@ void LpProblem::displaySimplexTableau(Matrix tableau, Matrix cb, Matrix basisInd
     std::cout << std::endl << std::endl;
 }
 
-bool LpProblem::isRestrictionSatisfied(Matrix potentialSolution, Matrix restLHS, double restRHS, restrictionType restType) {
+bool LpProblem::isRestrictionSatisfied(std::vector<double>, int); {
     double value = potentialSolution.dotProduct(restLHS);
     if(restType == LESS_THAN_OR_EQUAL) return (value <= restRHS) ? true : false;    // <=
     else if(restType == EQUAL) return (value == restRHS) ? true : false;            // =
