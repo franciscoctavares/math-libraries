@@ -3,3 +3,5 @@ main.cpp
 main
 .vscode/*
 model.lp
+Doxyfile
+html/*
