@@ -98,7 +98,13 @@ class LpProblem {
          */
         std::vector<Matrix> initialSimplexTableau();
 
-        std::vector<std::vector<int>> getConstraintsIndexes(Matrix);
+        /**
+         * @brief Given the extraCj row matrix(cj row minus the objective function's coefficients), returns the extra variables' indexes in the extraCj matrix.
+         *        This method is auxiliary o some other methods
+         * 
+         * @return std::vector<std::vector<int>> 
+         */
+        std::vector<std::pair<int, int>> getConstraintsIndexes(Matrix extraCj);
 
         /**
          * @brief Displays the current simplex tableau

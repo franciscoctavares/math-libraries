@@ -10,9 +10,9 @@ LpProblem::LpProblem(ProblemType modelType, std::vector<double> newObjectiveFunc
     constraints = newConstraints;
 }
 
-std::vector<std::vector<int>> LpProblem::getConstraintsIndexes(Matrix extraCj) {
-    std::vector<std::vector<int>> restrictionsIndices;
-    for(int i = 0; i < constraints.size(); i++) restrictionsIndices.push_back({-1, -1});
+std::vector<std::pair<int, int>> LpProblem::getConstraintsIndexes(Matrix extraCj) {
+    std::vector<std::pair<int, int>> constraintsIndexes;
+    for(int i = 0; i < constraints.size(); i++) constraintsIndexes.push_back(std::make_pair(-1, -1));
 
 
     unsigned n_slack_surplus_variables = 0;
@@ -20,40 +20,44 @@ std::vector<std::vector<int>> LpProblem::getConstraintsIndexes(Matrix extraCj) {
     unsigned currentCoefficient = 0;
     for(int i = 0; i < constraints.size(); i++) {
         if(constraints[i].getType() == LESS_THAN_OR_EQUAL) {
-            restrictionsIndices[i][0] = currentCoefficient;
+            //constraintsIndexes[i][0] = currentCoefficient;
+            constraintsIndexes[i].first = currentCoefficient;
             currentCoefficient++;
-            restrictionsIndices[i][1] = -2; // nas restrições <= não há variáveis artificiais
+            //constraintsIndexes[i][1] = -2; // nas restrições <= não há variáveis artificiais
+            constraintsIndexes[i].second = -2; // nas restrições <= não há variáveis artificiais
             n_slack_surplus_variables++;
         }
         else if(constraints[i].getType() == GREATER_THAN_OR_EQUAL) {
-            restrictionsIndices[i][0] = currentCoefficient;
+            //constraintsIndexes[i][0] = currentCoefficient;
+            constraintsIndexes[i].first = currentCoefficient;
             currentCoefficient++;
             n_slack_surplus_variables++;
         }
         else if(constraints[i].getType() == EQUAL) {
-            restrictionsIndices[i][0] = -2; // nas restrições = não há coeficiente do zero
+            //constraintsIndexes[i][0] = -2; // nas restrições = não há coeficiente do zero
+            constraintsIndexes[i].first = -2; // nas restrições = não há coeficiente do zero
         }
     }
 
     std::vector<unsigned> artificialRestrictions;
     for(int i = 0; i < constraints.size(); i++) {
-        if(restrictionsIndices[i][1] == -2) continue;
-        else if(restrictionsIndices[i][1] == -1) artificialRestrictions.push_back(i);
+        if(constraintsIndexes[i].second == -2) continue;
+        else if(constraintsIndexes[i].second == -1) artificialRestrictions.push_back(i);
     }
 
     for(int i = n_slack_surplus_variables; i < totalExtraVariables; i++) {
         if(artificialRestrictions.size() > 0) {
-            restrictionsIndices[artificialRestrictions[0]][1] = i;
+            constraintsIndexes[artificialRestrictions[0]].second = i;
             artificialRestrictions.erase(artificialRestrictions.begin());
         }
     }
 
-    for(int i = 0; i < restrictionsIndices.size(); i++) {
-        if(restrictionsIndices[i][0] != -2) restrictionsIndices[i][0] += objectiveFunction.columns();
-        if(restrictionsIndices[i][1] != -2) restrictionsIndices[i][1] += objectiveFunction.columns();
+    for(int i = 0; i < constraintsIndexes.size(); i++) {
+        if(constraintsIndexes[i].first != -2) constraintsIndexes[i].first += objectiveFunction.columns();
+        if(constraintsIndexes[i].second != -2) constraintsIndexes[i].second += objectiveFunction.columns();
         //std::cout << "[" << restrictionsIndices[i][0] << ", " << restrictionsIndices[i][1] << "]" << std::endl;
     }
-    return restrictionsIndices;
+    return constraintsIndexes;
 }
 
 std::vector<std::pair<size_t, size_t>> LpProblem::getMaxWidth(std::vector<std::string> headers, Matrix matrix, std::string mode) {
@@ -76,21 +80,21 @@ std::vector<std::string> LpProblem::basisHeaders(Matrix cj, Matrix basisIndices)
     Matrix extraCj = cj.subMatrix(0, 0, objectiveFunction.columns(), cj.columns());
     Matrix basisIndexes = getBasisIndexes(extraCj);
     basisIndexes = basisIndices;
-    std::vector<std::vector<int>> constraintsIndexes = getConstraintsIndexes(extraCj);
+    std::vector<std::pair<int, int>> constraintsIndexes = getConstraintsIndexes(extraCj);
 
     std::vector<std::string> basisHeaders;
     for(int i = 0; i < basisIndexes.rows(); i++) {
         unsigned currentIndex = basisIndexes.getElement(i, 0);
         if(currentIndex >= objectiveFunction.columns()) {
             for(int k = 0; k < constraintsIndexes.size(); k++) {
-                if(constraintsIndexes[k][0] == currentIndex) {
+                if(constraintsIndexes[k].first == currentIndex) {
                     basisHeaders.push_back("s" + std::to_string(k + 1));
-                    constraintsIndexes[k][0] = -2;
+                    constraintsIndexes[k].first = -2;
                     break;
                 }
-                else if(constraintsIndexes[k][1] == currentIndex) {
+                else if(constraintsIndexes[k].second == currentIndex) {
                     basisHeaders.push_back("a" + std::to_string(k + 1));
-                    constraintsIndexes[k][1] = -2;
+                    constraintsIndexes[k].second = -2;
                     break;
                 }
             }
@@ -102,12 +106,11 @@ std::vector<std::string> LpProblem::basisHeaders(Matrix cj, Matrix basisIndices)
     }
 
     return basisHeaders;
-
 }
 
 void LpProblem::displaySimplexTableau(Matrix tableau, Matrix cb, Matrix basisIndexes, Matrix cj, Matrix b, Matrix zj, Matrix cj_minus_zj) {
     Matrix extraCj = cj.subMatrix(0, 0, objectiveFunction.columns(), cj.columns() - 1);
-    std::vector<std::vector<int>> restrictionsIndexes = getConstraintsIndexes(extraCj);
+    std::vector<std::pair<int, int>> restrictionsIndexes = getConstraintsIndexes(extraCj);
 
     // compute the maximum width of all numbers to be printed
     size_t maxWidth = 0;
@@ -153,10 +156,10 @@ void LpProblem::displaySimplexTableau(Matrix tableau, Matrix cb, Matrix basisInd
         variables.push_back("x" + std::to_string(i + 1));
     }
     for(int k = 0; k < restrictionsIndexes.size(); k++) {
-        if(restrictionsIndexes[k][0] > 0) variables.push_back("s" + std::to_string(k + 1));
+        if(restrictionsIndexes[k].first > 0) variables.push_back("s" + std::to_string(k + 1));
     }
     for(int k = 0; k < restrictionsIndexes.size(); k++) {
-        if(restrictionsIndexes[k][1] > 0) variables.push_back("a" + std::to_string(k + 1));
+        if(restrictionsIndexes[k].second > 0) variables.push_back("a" + std::to_string(k + 1));
     }
 
     std::ostringstream basis_oss;
@@ -189,12 +192,12 @@ void LpProblem::displaySimplexTableau(Matrix tableau, Matrix cb, Matrix basisInd
         std::cout << std::setw(maxWidth) << "x" << i + 1 << " |";
     }
     for(int j = 0; j < restrictionsIndexes.size(); j++) {
-        if(restrictionsIndexes[j][0] > 0) {
+        if(restrictionsIndexes[j].first > 0) {
             std::cout << std::setw(maxWidth) << "s" << j + 1 << " |";
         }
     }
     for(int k = 0; k < restrictionsIndexes.size(); k++) {
-        if(restrictionsIndexes[k][1] > 0) {
+        if(restrictionsIndexes[k].second > 0) {
 
             std::cout << std::setw(maxWidth) << "a" << k + 1 << " |";
         }
@@ -762,7 +765,6 @@ Matrix LpProblem::getSimplifiedProblemSolution(Matrix simplifiedSolution, std::v
 
     return actualSolution;
 }
-
 
 Matrix LpProblem::getConstraintsLHS() {
     Matrix aux(constraints[0].getLhs(), 1, constraints[0].getLhs().size());
