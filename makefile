@@ -8,15 +8,12 @@ file:
 	g++ -c src/file.cpp -o obj/file.o
 constraint:
 	g++ -c src/constraint.cpp -o obj/constraint.o
-main: clean matrix lp ip constraint
-	g++ -c main.cpp -o obj/main.o
-	g++ -o main obj/main.o obj/matrix.o obj/lp.o obj/ip.o obj/constraint.o
+main: clean matrix lp constraint file
+	g++ -c src/main.cpp -o obj/main.o
+	g++ -o ./bin/main obj/main.o obj/matrix.o obj/lp.o obj/constraint.o obj/file.o
 	clear
-	./main
-test: clean matrix file
-	g++ -c test.cpp -o obj/test.o
-	g++ -o test obj/test.o obj/matrix.o obj/file.o
-	clear
-	./test
+	./bin/main
 clean:
-	rm -f obj/* main
+	rm -f obj/* ./bin/main
+	rm -rf obj/
+	mkdir -p obj

@@ -1,7 +1,13 @@
+# Object files
 obj/*
-main.cpp
-main
-.vscode/*
-model.lp
+
+# Binary
+bin/*
+
+# Documentation files
 Doxyfile
 html/*
+
+# Extra stuff
+.vscode/*
+model.lp
