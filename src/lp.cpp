@@ -2,40 +2,41 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 
-LpProblem::LpProblem(ProblemType probType, std::vector<double> newObjectiveFunction, std::vector<Constraint> newConstraints) {
-    type = probType,
+LpProblem::LpProblem(ProblemType modelType, std::vector<double> newObjectiveFunction, std::vector<Constraint> newConstraints) {
+    type = modelType;
     objectiveFunction = Matrix(newObjectiveFunction, 1, newObjectiveFunction.size());
     constraints = newConstraints;
 }
 
-std::vector<std::vector<int>> LpProblem::getRestrictionsIndexes(Matrix extraCj) {
+std::vector<std::vector<int>> LpProblem::getConstraintsIndexes(Matrix extraCj) {
     std::vector<std::vector<int>> restrictionsIndices;
-    for(int i = 0; i < restrictionsTypes.size(); i++) restrictionsIndices.push_back({-1, -1});
+    for(int i = 0; i < constraints.size(); i++) restrictionsIndices.push_back({-1, -1});
 
 
     unsigned n_slack_surplus_variables = 0;
     unsigned totalExtraVariables = extraCj.columns();
     unsigned currentCoefficient = 0;
-    for(int i = 0; i < restrictionsTypes.size(); i++) {
-        if(restrictionsTypes[i] == LESS_THAN_OR_EQUAL) {
+    for(int i = 0; i < constraints.size(); i++) {
+        if(constraints[i].getType() == LESS_THAN_OR_EQUAL) {
             restrictionsIndices[i][0] = currentCoefficient;
             currentCoefficient++;
             restrictionsIndices[i][1] = -2; // nas restrições <= não há variáveis artificiais
             n_slack_surplus_variables++;
         }
-        else if(restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) {
+        else if(constraints[i].getType() == GREATER_THAN_OR_EQUAL) {
             restrictionsIndices[i][0] = currentCoefficient;
             currentCoefficient++;
             n_slack_surplus_variables++;
         }
-        else if(restrictionsTypes[i] == EQUAL) {
+        else if(constraints[i].getType() == EQUAL) {
             restrictionsIndices[i][0] = -2; // nas restrições = não há coeficiente do zero
         }
     }
 
     std::vector<unsigned> artificialRestrictions;
-    for(int i = 0; i < restrictionsTypes.size(); i++) {
+    for(int i = 0; i < constraints.size(); i++) {
         if(restrictionsIndices[i][1] == -2) continue;
         else if(restrictionsIndices[i][1] == -1) artificialRestrictions.push_back(i);
     }
@@ -73,9 +74,9 @@ std::vector<std::pair<size_t, size_t>> LpProblem::getMaxWidth(std::vector<std::s
 
 std::vector<std::string> LpProblem::basisHeaders(Matrix cj, Matrix basisIndices) {
     Matrix extraCj = cj.subMatrix(0, 0, objectiveFunction.columns(), cj.columns());
-    Matrix basisIndexes = getBasisIndices(extraCj);
+    Matrix basisIndexes = getBasisIndexes(extraCj);
     basisIndexes = basisIndices;
-    std::vector<std::vector<int>> constraintsIndexes = getRestrictionsIndexes(extraCj);
+    std::vector<std::vector<int>> constraintsIndexes = getConstraintsIndexes(extraCj);
 
     std::vector<std::string> basisHeaders;
     for(int i = 0; i < basisIndexes.rows(); i++) {
@@ -106,7 +107,7 @@ std::vector<std::string> LpProblem::basisHeaders(Matrix cj, Matrix basisIndices)
 
 void LpProblem::displaySimplexTableau(Matrix tableau, Matrix cb, Matrix basisIndexes, Matrix cj, Matrix b, Matrix zj, Matrix cj_minus_zj) {
     Matrix extraCj = cj.subMatrix(0, 0, objectiveFunction.columns(), cj.columns() - 1);
-    std::vector<std::vector<int>> restrictionsIndexes = getRestrictionsIndexes(extraCj);
+    std::vector<std::vector<int>> restrictionsIndexes = getConstraintsIndexes(extraCj);
 
     // compute the maximum width of all numbers to be printed
     size_t maxWidth = 0;
@@ -250,16 +251,27 @@ void LpProblem::displaySimplexTableau(Matrix tableau, Matrix cb, Matrix basisInd
     std::cout << std::endl << std::endl;
 }
 
-bool LpProblem::isRestrictionSatisfied(std::vector<double>, int); {
-    double value = potentialSolution.dotProduct(restLHS);
-    if(restType == LESS_THAN_OR_EQUAL) return (value <= restRHS) ? true : false;    // <=
-    else if(restType == EQUAL) return (value == restRHS) ? true : false;            // =
-    else return (value >= restRHS) ? true : false;                                  // >=
+bool LpProblem::isConstraintSatisfied(Matrix potentialSolution, int constraintIndex) {
+    if(constraintIndex < 0 || constraintIndex >= constraints.size()) {
+        std::ostringstream errorMsg;
+        errorMsg << "The LP model only has " << constraints.size() << " constraints, but user tried to access constraint with index " << constraintIndex;
+        throw std::runtime_error(errorMsg.str());
+    }
+
+    //Matrix potentialSolutionAux(potentialSolution, 1, potentialSolution.size());
+    Matrix constraintLhs(constraints[constraintIndex].getLhs(), 1, constraints[constraintIndex].getLhs().size());
+    ConstraintType restType = constraints[constraintIndex].getType();
+    double rhs = constraints[constraintIndex].getRhs();
+    double value = potentialSolution.dotProduct(constraintLhs);
+    
+    if(restType == LESS_THAN_OR_EQUAL) return (value <= rhs) ? true : false;    // <=
+    else if(restType == EQUAL) return (value == rhs) ? true : false;            // =
+    else return (value >= rhs) ? true : false;                                  // >=
 }
 
 bool LpProblem::isSolutionAdmissible(Matrix potentialSolution) {
-    for(int i = 0; i < restrictionsLHS.rows(); i++) {
-        if(!isRestrictionSatisfied(potentialSolution, Matrix(restrictionsLHS.getRow(i), 1, restrictionsLHS.columns()), restrictionsRHS.getElement(i, 0), restrictionsTypes[i])) return false;
+    for(int i = 0; i < constraints.size(); i++) {
+        if(!isConstraintSatisfied(potentialSolution, i)) return false;
     }
 
     // non negativity
@@ -270,33 +282,35 @@ bool LpProblem::isSolutionAdmissible(Matrix potentialSolution) {
     return true;
 }
 
-Matrix LpProblem::getBasisIndices(Matrix extraCj) {
+Matrix LpProblem::getBasisIndexes(Matrix extraCj) {
     std::vector<std::vector<int>> restrictionsIndices;
-    for(int i = 0; i < restrictionsTypes.size(); i++) restrictionsIndices.push_back({-1, -1});
+    std::vector<ConstraintType> constraintsTypes;
+    for(int i = 0; i < constraints.size(); i++) constraintsTypes.push_back(constraints[i].getType());
+    for(int i = 0; i < constraints.size(); i++) restrictionsIndices.push_back({-1, -1});
 
 
     unsigned n_slack_surplus_variables = 0;
     unsigned totalExtraVariables = extraCj.columns();
     unsigned currentCoefficient = 0;
-    for(int i = 0; i < restrictionsTypes.size(); i++) {
-        if(restrictionsTypes[i] == LESS_THAN_OR_EQUAL) {
+    for(int i = 0; i < constraints.size(); i++) {
+        if(constraintsTypes[i] == LESS_THAN_OR_EQUAL) {
             restrictionsIndices[i][0] = currentCoefficient;
             currentCoefficient++;
             restrictionsIndices[i][1] = -2; // nas restrições <= não há variáveis artificiais
             n_slack_surplus_variables++;
         }
-        else if(restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) {
+        else if(constraintsTypes[i] == GREATER_THAN_OR_EQUAL) {
             restrictionsIndices[i][0] = currentCoefficient;
             currentCoefficient++;
             n_slack_surplus_variables++;
         }
-        else if(restrictionsTypes[i] == EQUAL) {
+        else if(constraintsTypes[i] == EQUAL) {
             restrictionsIndices[i][0] = -2; // nas restrições = não há coeficiente do zero
         }
     }
 
     std::vector<unsigned> artificialRestrictions;
-    for(int i = 0; i < restrictionsTypes.size(); i++) {
+    for(int i = 0; i < constraintsTypes.size(); i++) {
         if(restrictionsIndices[i][1] == -2) continue;
         else if(restrictionsIndices[i][1] == -1) artificialRestrictions.push_back(i);
     }
@@ -315,29 +329,36 @@ Matrix LpProblem::getBasisIndices(Matrix extraCj) {
     }
 
     std::vector<double> basisIndices;
-    for(int i = 0; i < restrictionsTypes.size(); i++) {
-        if(restrictionsTypes[i] == LESS_THAN_OR_EQUAL) basisIndices.push_back(restrictionsIndices[i][0]);
-        else if(restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) basisIndices.push_back(restrictionsIndices[i][1]);
-        else if(restrictionsTypes[i] == EQUAL) basisIndices.push_back(restrictionsIndices[i][1]);
+    for(int i = 0; i < constraintsTypes.size(); i++) {
+        if(constraintsTypes[i] == LESS_THAN_OR_EQUAL) basisIndices.push_back(restrictionsIndices[i][0]);
+        else if(constraintsTypes[i] == GREATER_THAN_OR_EQUAL) basisIndices.push_back(restrictionsIndices[i][1]);
+        else if(constraintsTypes[i] == EQUAL) basisIndices.push_back(restrictionsIndices[i][1]);
     }
 
-    return Matrix(basisIndices, restrictionsTypes.size(), 1);
+    return Matrix(basisIndices, constraintsTypes.size(), 1);
 }
 
 std::vector<Matrix> LpProblem::initialSimplexTableau() {
-    Matrix simplexTableau = restrictionsLHS;
+    //Matrix simplexTableau = restrictionsLHS;
+    std::vector<double> firstRow = constraints[0].getLhs();
+    Matrix simplexTableau(firstRow, 1, firstRow.size());
+    for(int i = 1; i < constraints.size(); i++) simplexTableau.stackVertical(Matrix(constraints[i].getLhs(), 1, firstRow.size()));
+    
     simplexTableau.stackHorizontal(extraVariablesMatrix());
-    Matrix b = restrictionsRHS;
+    
+    firstRow.clear();
+    for(Constraint cons: constraints) firstRow.push_back(cons.getRhs());
+    Matrix b(firstRow, firstRow.size(), 1);
     Matrix cj = objectiveFunction;
     
     if(type == MIN) cj = cj * -1;
 
     std::vector<double> aux;
-    for(int i = 0; i < restrictionsLHS.rows(); i++) {
-        if(restrictionsTypes[i] == LESS_THAN_OR_EQUAL || restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) aux.push_back(0.0);
+    for(int i = 0; i < constraints.size(); i++) {
+        if(constraints[i].getType() == LESS_THAN_OR_EQUAL || constraints[i].getType() == GREATER_THAN_OR_EQUAL) aux.push_back(0.0);
     }
-    for(int i = 0; i < restrictionsLHS.rows(); i++) {
-        if(restrictionsTypes[i] == EQUAL || restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) {
+    for(int i = 0; i < constraints.size(); i++) {
+        if(constraints[i].getType() == EQUAL || constraints[i].getType() == GREATER_THAN_OR_EQUAL) {
             if(type == MIN) aux.push_back(-1 * M);
             else if(type == MAX) aux.push_back(-1 * M);
         }
@@ -345,18 +366,18 @@ std::vector<Matrix> LpProblem::initialSimplexTableau() {
 
     Matrix extraCj(aux, 1, aux.size());
 
-    Matrix basisIndicesAux = getBasisIndices(extraCj);
+    Matrix basisIndicesAux = getBasisIndexes(extraCj);
     cj.stackHorizontal(extraCj);
 
     std::vector<double> basisThing;
-    for(int i = 0; i < restrictionsLHS.rows(); i++) {
-        if(restrictionsTypes[i] == LESS_THAN_OR_EQUAL) {
+    for(int i = 0; i < constraints.size(); i++) {
+        if(constraints[i].getType() == LESS_THAN_OR_EQUAL) {
             basisThing.push_back(0.0);
         }
-        else if(restrictionsTypes[i] == EQUAL) {
+        else if(constraints[i].getType() == EQUAL) {
             basisThing.push_back(-1 * M);
         }
-        else if(restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) {
+        else if(constraints[i].getType() == GREATER_THAN_OR_EQUAL) {
             basisThing.push_back(-1 * M);
         }
     }
@@ -397,46 +418,46 @@ Matrix LpProblem::extraVariablesMatrix() {
 
     std::vector<std::vector<double>> pairs;
 
-    for(int i = 0; i < restrictionsTypes.size(); i++) {
-        if(restrictionsTypes[i] == LESS_THAN_OR_EQUAL) {
+    for(int i = 0; i < constraints.size(); i++) {
+        if(constraints[i].getType() == LESS_THAN_OR_EQUAL) {
             nVariables += 1;
             slack_surplus_variables += 1;
         }
-        else if(restrictionsTypes[i] == EQUAL) {
+        else if(constraints[i].getType() == EQUAL) {
             nVariables += 1;
             artificial_variables += 1;
         }
-        else if(restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) {
+        else if(constraints[i].getType() == GREATER_THAN_OR_EQUAL) {
             nVariables += 2;
             slack_surplus_variables += 1;
             artificial_variables += 1;
         }
     }
 
-    for(int i = 0; i < restrictionsTypes.size(); i++) {
-        if(restrictionsTypes[i] == LESS_THAN_OR_EQUAL) {
+    for(int i = 0; i < constraints.size(); i++) {
+        if(constraints[i].getType() == LESS_THAN_OR_EQUAL) {
             pairs.push_back({double(i), 1.0});
         }
-        else if(restrictionsTypes[i] == EQUAL) {
+        else if(constraints[i].getType() == EQUAL) {
             continue;
         }
-        else if(restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) {
+        else if(constraints[i].getType() == GREATER_THAN_OR_EQUAL) {
             pairs.push_back({double(i), -1.0});
         }
     }
 
-    for(int i = 0; i < restrictionsTypes.size(); i++) {
-        if(restrictionsTypes[i] == EQUAL || restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) {
+    for(int i = 0; i < constraints.size(); i++) {
+        if(constraints[i].getType() == EQUAL || constraints[i].getType() == GREATER_THAN_OR_EQUAL) {
             //pairs.push_back({double(slack_surplus_variables - 1 + i), 1.0});
             pairs.push_back({double(i), 1.0});
         }
         else continue;
     }
 
-    Matrix aux = zeros(restrictionsLHS.rows(), nVariables);
+    Matrix aux = zeros(constraints.size(), nVariables);
 
     for(int i = 0; i < pairs.size(); i++) {
-        aux = aux.setColumn(i, basisVector(restrictionsLHS.rows(), pairs[i][0]) * pairs[i][1]);
+        aux = aux.setColumn(i, basisVector(constraints.size(), pairs[i][0]) * pairs[i][1]);
     }
 
     return aux;
@@ -457,13 +478,13 @@ Matrix LpProblem::solveSimplex() {
 
     unsigned n_surplus_slack_variables = 0;
     unsigned n_artificial_variables = 0;
-    for(int i = 0; i < restrictionsTypes.size(); i++) {
-        if(restrictionsTypes[i] == LESS_THAN_OR_EQUAL) n_surplus_slack_variables++;
-        else if(restrictionsTypes[i] == GREATER_THAN_OR_EQUAL) {
+    for(int i = 0; i < constraints.size(); i++) {
+        if(constraints[i].getType() == LESS_THAN_OR_EQUAL) n_surplus_slack_variables++;
+        else if(constraints[i].getType() == GREATER_THAN_OR_EQUAL) {
             n_surplus_slack_variables++;
             n_artificial_variables++;
         }
-        else if(restrictionsTypes[i] == EQUAL) n_artificial_variables++;
+        else if(constraints[i].getType() == EQUAL) n_artificial_variables++;
     }
 
     for(int i = 0; i < simplexTableau.columns(); i++) {
@@ -476,11 +497,8 @@ Matrix LpProblem::solveSimplex() {
     unsigned iterations = 0;
     while(!isSimplexDone(cj_minus_zj)) {
 
-        //cj.displayMatrix();
-        //std::cout << std::endl;
-
         pivots.setElement(0, 1, cj_minus_zj.maxValueIndex());
-        Matrix ratios = zeros(restrictionsLHS.rows(), 1);
+        Matrix ratios = zeros(constraints.size(), 1);
 
         ratios = b.pointDivision(simplexTableau.getColumn(pivots.getElement(0, 1)));
         //ratios.displayMatrix();
@@ -493,7 +511,7 @@ Matrix LpProblem::solveSimplex() {
 
         unsigned pivotRow = getPivotRow(simplexAux, bAux, ratios);
         if(pivotRow == -1) {
-            optimalSolution = Matrix({INFINITY}, 1, 1);
+            //optimalSolution = Matrix({INFINITY}, 1, 1);
             return Matrix({INFINITY}, 1, 1);
         }
         pivots.setElement(0, 0, pivotRow);
@@ -525,12 +543,6 @@ Matrix LpProblem::solveSimplex() {
         basisIndices.setElement(oldBasis, 0, newBasis);
         cb.setElement(oldBasis, 0, cj.getElement(0, newBasis));
 
-        //std::cout << "Pivot element is located at(" << oldBasis << ", " << newBasis - 1 << ") and is " << simplexTableau.getElement(oldBasis, newBasis - 1) << std::endl;
-        //cb.displayMatrix();
-        //std::cout << std::endl;
-        //simplexTableau.displayMatrix();
-        //std::cout << std::endl;
-
         Matrix newRow = Matrix(simplexTableau.getRow(oldBasis), 1, simplexTableau.columns()) * (1 / simplexTableau.getElement(oldBasis, newBasis));
         b.setElement(oldBasis, 0, b.getElement(oldBasis, 0) / simplexTableau.getElement(oldBasis, newBasis));
 
@@ -545,26 +557,10 @@ Matrix LpProblem::solveSimplex() {
             }
         }
 
-        //simplexTableau.displayMatrix();
-        //std::cout << std::endl;
-        //b.displayMatrix();
-        //std::cout << std::endl;
-        //zj.displayMatrix();
-        //std::cout << std::endl;
-        //std::cout << "---------------------------------------------------------------" << std::endl;
-
         for(int i = 0; i < simplexTableau.columns(); i++) {
             zj.setElement(0, i, cb.dotProduct(simplexTableau.getColumn(i)));
         }
         cj_minus_zj = cj - zj;
-
-        //displaySimplexTableau(simplexTableau, cb, basisIndices, cj, b, zj, cj_minus_zj);
-
-        //std::cout << std::endl;
-        //basisIndices.displayMatrix();
-        //std::cout << std::endl;
-        //cb.displayMatrix();
-        //std::cout << std::endl;
 
         iterations++;
 
@@ -574,9 +570,6 @@ Matrix LpProblem::solveSimplex() {
 
     Matrix solution = zeros(1, objectiveFunction.columns());
 
-    //std::vector<double> solutionStuff(objectiveFunction.columns(), 0.0);
-
-
     for(int k = 0; k < basisIndices.rows(); k++) {
         if(basisIndices.getElement(k, 0) < objectiveFunction.columns()) solution.setElement(0, basisIndices.getElement(k, 0), b.getElement(k, 0));
         else if(basisIndices.getElement(k, 0) >= objectiveFunction.columns() + n_surplus_slack_variables && b.getElement(k, 0) > 0) {
@@ -585,12 +578,61 @@ Matrix LpProblem::solveSimplex() {
         }
     }
 
-    //std::cout << "Hello there" << std::endl;
     optimalSolution = solution;
     return solution;
 }
 
-void LpProblem::displayProblem() {
+void LpProblem::displayProblem(Matrix optimalSolution) {
+    // Objective function
+    if(type == MAX) std::cout << "max z: ";
+    else if(type == MIN) std::cout << "min z: ";
+
+    for(int i = 0; i < objectiveFunction.columns(); i++) {
+        if(objectiveFunction.getElement(0, i) < 0) std::cout << "- ";
+        else if(objectiveFunction.getElement(0, i) > 0 && i > 0) std::cout << "+ ";
+
+        if(objectiveFunction.getElement(0, i) != 1 && floor(objectiveFunction.getElement(0, i)) != objectiveFunction.getElement(0, i)) 
+            std::cout << std::setprecision(3) << std::fixed << objectiveFunction.getElement(0, i);
+        else if(objectiveFunction.getElement(0, i) != 1 && floor(objectiveFunction.getElement(0, i) != 1) == objectiveFunction.getElement(0, i) != 1)
+            std::cout << unsigned(objectiveFunction.getElement(0, i));
+        std::cout << "x" << i + 1;
+
+        if(i < objectiveFunction.columns() - 1) std::cout << " ";
+    }
+    std::cout << std::endl << std::endl;;
+
+    // Constraints
+    std::cout << "subject to:" << std::endl;
+    for(int i = 0; i < constraints.size(); i++) {
+        bool hasWritten = false;
+        std::vector<double> lhs = constraints[i].getLhs();
+        ConstraintType currentType = constraints[i].getType();
+        double rhs = constraints[i].getRhs();
+        for(int j = 0; j < lhs.size(); j++) {
+            if(lhs[j] != 0) {
+                if(lhs[j] < 0) std::cout << "- ";
+                else if(lhs[j] > 0 && j > 0 && hasWritten) std::cout << "+ ";
+
+                if(lhs[j] != 1 && floor(lhs[j]) != lhs[j]) std::cout << std::setprecision(3) << std::fixed << fabs(lhs[j]);
+                else if(lhs[j] != 1 && floor(lhs[j]) == lhs[j]) std::cout << unsigned(lhs[j]);
+
+                std::cout << "x" << j + 1;
+                hasWritten = true;
+            }
+
+            if(j < lhs.size() - 1) std::cout << " ";
+        }
+
+        if(currentType == LESS_THAN_OR_EQUAL) std::cout << " <= ";
+        else if(currentType == GREATER_THAN_OR_EQUAL) std::cout << " >= ";
+        else if(currentType == EQUAL) std::cout << " = ";
+
+        if(rhs < 0) std::cout << "-";
+        if(floor(rhs) == rhs) std::cout << unsigned(rhs);
+        else std::cout << std::setprecision(3) << std::fixed << fabs(rhs);
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
 
     if(optimalSolution.rows() == 1 && optimalSolution.columns() == 1 && optimalSolution.getElement(0, 0) == 0) std::cout << "The problem is infeasible" << std::endl;
     else if(optimalSolution.rows() == 1 && optimalSolution.columns() == 1 && optimalSolution.getElement(0, 0) == INFINITY) std::cout << "The problem is unbounded" << std::endl;
@@ -602,26 +644,28 @@ void LpProblem::displayProblem() {
         }
         std::cout << ") = (";
         for(int i = 0; i < optimalSolution.columns(); i++) {
-            std::cout << std::setprecision(3) << std::fixed << optimalSolution.getElement(0, i);
+            if(floor(optimalSolution.getElement(0, i)) == optimalSolution.getElement(0, i)) std::cout << unsigned(optimalSolution.getElement(0, i));
+            else std::cout << std::setprecision(3) << std::fixed << optimalSolution.getElement(0, i);
             if(i < optimalSolution.columns() - 1) std::cout << ", ";
         }
-        std::cout << "), and Z = " << std::setprecision(3) << std::fixed << optimalSolution.dotProduct(objectiveFunction) << std::endl;
+        std::cout << "), and Z = ";
+        if(floor(optimalSolution.dotProduct(objectiveFunction)) == optimalSolution.dotProduct(objectiveFunction)) 
+            std::cout << unsigned(optimalSolution.dotProduct(objectiveFunction)) << std::endl;
+        else std::cout << std::setprecision(3) << std::fixed << optimalSolution.dotProduct(objectiveFunction) << std::endl;
     }
 }
 
-void LpProblem::addRestriction(Matrix lhs, restrictionType newType, double value) {
-    restrictionsLHS.stackVertical(lhs);
-    restrictionsRHS.stackVertical(Matrix({value}, 1, 1));
-    restrictionsTypes.push_back(newType);
+void LpProblem::addConstraint(Constraint newConstraint) {
+    constraints.push_back(newConstraint);
 }
 
-bool LpProblem::isProblemFeasible() {
-    if(optimalSolution.rows() == 1 && optimalSolution.columns() == 1 && optimalSolution.getElement(0, 0) == 0) return false;
+bool LpProblem::isProblemFeasible(Matrix candidateSolution) {
+    if(candidateSolution.rows() == 1 && candidateSolution.columns() == 1 && candidateSolution.getElement(0, 0) == 0) return false;
     else return true;
 }
 
-bool LpProblem::isProblemBounded() {
-    if(optimalSolution.rows() == 1 && optimalSolution.columns() == 1 && optimalSolution.getElement(0, 0) == INFINITY) return false;
+bool LpProblem::isProblemBounded(Matrix candidateSolution) {
+    if(candidateSolution.rows() == 1 && candidateSolution.columns() == 1 && candidateSolution.getElement(0, 0) == INFINITY) return false;
     else return true;
 }
 
@@ -646,12 +690,13 @@ std::tuple<LpProblem, std::vector<std::pair<unsigned, unsigned>>, double> LpProb
 
     std::vector<std::pair<unsigned, unsigned>> oldVariablesToNewVariables;
     Matrix newObj = objectiveFunction;
-    Matrix newLhs = restrictionsLHS;
-    Matrix newRhs = restrictionsRHS;
-    std::vector<restrictionType> newTypes = restrictionsTypes;
+
+    Matrix newLhs = getConstraintsLHS();
+    Matrix newRhs = getConstraintsRHS();
+    std::vector<ConstraintType> newTypes = getConstraintsTypes();
 
     newObj.removeColumn(variable);
-    for(int i = 0; i < restrictionsLHS.rows(); i++) {
+    for(int i = 0; i < constraints.size(); i++) {
         double currentRhsValue = newRhs.getElement(i, 0);
         newRhs.setElement(i, 0, currentRhsValue - newLhs.getElement(i, variable) * value);
     }
@@ -690,7 +735,17 @@ std::tuple<LpProblem, std::vector<std::pair<unsigned, unsigned>>, double> LpProb
         }     
     }
 
-    LpProblem newProblem(type, newObj, newLhs, newRhs, newTypes);
+    std::vector<Constraint> newConstraints;
+    for(int i = 0; i < newLhs.rows(); i++) {
+        std::string newType_str;
+        if(newTypes[i] == LESS_THAN_OR_EQUAL) newType_str = "<=";
+        else if(newTypes[i] == GREATER_THAN_OR_EQUAL) newType_str = ">=";
+        else if(newTypes[i] == EQUAL) newType_str = "=";
+        newConstraints.push_back(Constraint(newLhs.getRow(i), newType_str, newRhs.getElement(0, 0)));
+    }
+
+    LpProblem newProblem(type, newObj.getElements(), newConstraints);
+
     std::tuple<LpProblem, std::vector<std::pair<unsigned, unsigned>>, double> newProblemAndMoreStuff(newProblem, oldVariablesToNewVariables, c);
 
     return newProblemAndMoreStuff;
@@ -708,14 +763,23 @@ Matrix LpProblem::getSimplifiedProblemSolution(Matrix simplifiedSolution, std::v
     return actualSolution;
 }
 
+
 Matrix LpProblem::getConstraintsLHS() {
-    return restrictionsLHS;
+    Matrix aux(constraints[0].getLhs(), 1, constraints[0].getLhs().size());
+    for(int i = 1; i < constraints.size(); i++) {
+        aux.stackVertical(Matrix(constraints[i].getLhs(), 1, aux.columns()));
+    }
+    return aux;
 }
 
-std::vector<restrictionType> LpProblem::getConstraintsTypes() {
-    return restrictionsTypes;
+std::vector<ConstraintType> LpProblem::getConstraintsTypes() {
+    std::vector<ConstraintType> aux;
+    for(int i = 0; i < constraints.size(); i++) aux.push_back(constraints[i].getType());
+    return aux;
 }
 
 Matrix LpProblem::getConstraintsRHS() {
-    return restrictionsRHS;
+    std::vector<double> aux;
+    for(int i = 0; i < constraints.size(); i++) aux.push_back(constraints[i].getRhs());
+    return Matrix(aux, aux.size(), 1);
 }
