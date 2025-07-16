@@ -1,4 +1,4 @@
-#include "../include/file.h"
+#include "../include/model_reader.h"
 
 #include <iostream>
 #include <fstream>
@@ -75,7 +75,7 @@ std::pair<std::string, std::vector<double>> ModelFileReader::readObjectiveFuncti
     return result;
 }
 
-std::vector<std::tuple<std::vector<double>, std::string, double>> ModelFileReader::readConstraints(std::string fileName) {
+std::vector<std::tuple<std::vector<double>, std::string, double>> ModelFileReader::readConstraints(std::string fileName, unsigned varsNumber) {
     std::ifstream file(fileName);
     if (!file) {
         std::cerr << "Error: Cannot open file.\n";
@@ -96,44 +96,6 @@ std::vector<std::tuple<std::vector<double>, std::string, double>> ModelFileReade
         //return 1;
     }
     std::regex termRegex(R"(([+-]?\s*\d*\.?\d*)x(\d+))");
-    /*
-    std::smatch match;
-    std::regex headerRegex(R"((max|min):\s*(.*))");
-    if (!std::regex_match(line, match, headerRegex)) {
-        std::cerr << "Error: Invalid objective function format.\n";
-        //return 1;
-    }
-
-    //std::cout << match[1] << std::endl;
-
-    std::string expr = match[2]; // part after 'max:' or 'min:'
-    std::regex termRegex(R"(([+-]?\s*\d*\.?\d*)x(\d+))");
-
-    int maxIndex = 0;
-    std::vector<std::pair<int, double>> objTerms;
-
-    auto termsBegin = std::sregex_iterator(expr.begin(), expr.end(), termRegex);
-    auto termsEnd = std::sregex_iterator();
-
-    for (auto it = termsBegin; it != termsEnd; ++it) {
-        std::string coeffStr = (*it)[1].str();
-        std::string indexStr = (*it)[2].str();
-
-        coeffStr.erase(remove_if(coeffStr.begin(), coeffStr.end(), ::isspace), coeffStr.end());
-        if (coeffStr.empty() || coeffStr == "+") coeffStr = "1";
-        else if (coeffStr == "-") coeffStr = "-1";
-
-        int varIndex = std::stoi(indexStr) - 1;
-        double coeff = std::stod(coeffStr);
-        objTerms.emplace_back(varIndex, coeff);
-        maxIndex = std::max(maxIndex, varIndex);
-    }
-
-    objectiveCoefficients.resize(maxIndex + 1, 0.0);
-    for (const auto& [index, value] : objTerms) {
-        objectiveCoefficients[index] = value;
-    }
-    */
 
     // --- Skip blank line ---
     while (std::getline(file, line)) {
@@ -160,6 +122,7 @@ std::vector<std::tuple<std::vector<double>, std::string, double>> ModelFileReade
         std::string lhsPart = line.substr(0, rhsMatch.position(1)); // LHS up to inequality
         std::vector<std::pair<int, double>> constraintTerms;
         int maxVarInConstraint = 0;
+        int globalMaxVarIndex = 0;
 
         auto lhsTermsBegin = std::sregex_iterator(lhsPart.begin(), lhsPart.end(), termRegex);
         auto lhsTermsEnd = std::sregex_iterator();
@@ -176,14 +139,17 @@ std::vector<std::tuple<std::vector<double>, std::string, double>> ModelFileReade
             double coeff = std::stod(coeffStr);
             constraintTerms.emplace_back(varIndex, coeff);
             maxVarInConstraint = std::max(maxVarInConstraint, varIndex);
+            globalMaxVarIndex = std::max(globalMaxVarIndex, varIndex);
         }
 
-        std::vector<double> coeffs(std::max((int)objectiveCoefficients.size(), maxVarInConstraint + 1), 0.0);
+        std::vector<double> coeffs(varsNumber, 0.0);
         for (const auto& [index, value] : constraintTerms) {
             coeffs[index] = value;
         }
 
         constraintsCoefficients.push_back(coeffs);
+
+        //constraintsCoefficients[0].resize();
 
         std::tuple<std::vector<double>, std::string, double> constraint(coeffs, inequality, rhs);
         allConstraints.push_back(constraint);
@@ -192,51 +158,19 @@ std::vector<std::tuple<std::vector<double>, std::string, double>> ModelFileReade
     return allConstraints;
 }
 
-std::pair<std::pair<std::string, std::vector<double>>, std::vector<std::tuple<std::vector<double>, std::string, double>>> ModelFileReader::readModel(std::string fileName) {
-    std::pair<std::string, std::vector<double>> objectiveFunction = readObjectiveFunction(fileName);
-    std::vector<std::tuple<std::vector<double>, std::string, double>> constraints = readConstraints(fileName);
-    return std::make_pair(objectiveFunction, constraints);
-}
+LpProblem ModelFileReader::readModel(std::string fileName) {
+    std::pair<std::string, std::vector<double>> objectiveFunctionAux = readObjectiveFunction(fileName);
+    std::vector<std::tuple<std::vector<double>, std::string, double>> constraintsAux = readConstraints(fileName, objectiveFunctionAux.second.size());
 
-void ModelFileReader::displayModel(std::pair<std::pair<std::string, std::vector<double>>, std::vector<std::tuple<std::vector<double>, std::string, double>>> modelParts) {
-    std::pair<std::string, std::vector<double>> objectiveFunction = modelParts.first;
-    std::vector<std::tuple<std::vector<double>, std::string, double>> constraints = modelParts.second;
+    ProblemType type;
+    if(objectiveFunctionAux.first == "max") type = MAX;
+    else if(objectiveFunctionAux.first == "min") type = MIN;
 
-    // Display objective function
-    std::cout << objectiveFunction.first << " Z = ";
-    for(int i = 0; i < objectiveFunction.second.size(); i++) {
-        double coeff = objectiveFunction.second[i];
-        if(coeff < 0) std::cout << "- ";
-        else { if(i > 0) std::cout << "+ "; }
-
-        if(fabs(coeff) != 1) std::cout << fabs(coeff);
-        std::cout << "x" << i + 1;
-        if(i < objectiveFunction.second.size() - 1) std::cout << " ";
-    }
-    std::cout << std::endl << std::endl;
-
-    std::cout << "Subject to:" << std::endl << std::endl;
-
-    // Display constraints
-    for(std::tuple<std::vector<double>, std::string, double> constraint: constraints) {
-        std::vector<double> lhs = std::get<0>(constraint);
-        std::string restrictionType = std::get<1>(constraint);
-        double rhs = std::get<2>(constraint);
-
-        bool hasWrittenCoeffs = false;
-        for(int i = 0; i < lhs.size(); i++) {
-            if(lhs[i] == 0) continue;
-            double coeff = lhs[i];
-            if(coeff < 0) std::cout << "- ";
-            else { if(hasWrittenCoeffs) std::cout << "+ "; }
-
-            if(fabs(coeff) != 1) std::cout << fabs(coeff);
-            hasWrittenCoeffs = true;
-            std::cout << "x" << i + 1;
-            if(i < lhs.size() - 1) std::cout << " ";
-        }
-
-        std::cout << " " << restrictionType << " " << rhs << std::endl;
+    std::vector<double> objectiveFunction = objectiveFunctionAux.second;
+    std::vector<Constraint> constraints;
+    for(std::tuple<std::vector<double>, std::string, double> consts : constraintsAux) {
+        constraints.push_back(Constraint(std::get<0>(consts), std::get<1>(consts),std::get<2>(consts)));
     }
 
+    return LpProblem(type, objectiveFunction, constraints);
 }
